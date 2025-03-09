@@ -8,7 +8,8 @@ from rest_framework import status
 from UserProfile.models import UserProfile
 from badge.models import Badge
 from rest_framework.decorators import action
-
+from django.utils import timezone
+from datetime import timedelta
 
 
 class UserTaskViewSet(viewsets.ModelViewSet):
@@ -20,6 +21,20 @@ class UserTaskViewSet(viewsets.ModelViewSet):
     
     def perform_create(self, serializer):
         serializer.save(user=self.request.user)
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def today(self, request):
+        today = timezone.now().date()
+        tomorrow = today + timedelta(days=1)
+        
+        user_tasks = UserTask.objects.filter(
+            user=request.user,
+            completed_at__gte=today,
+            completed_at__lt=tomorrow
+        )
+        
+        serializer = self.get_serializer(user_tasks, many=True)
+        return Response(serializer.data)
 
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated, IsOwnerOrReadOnly])
     def uncomplete_task(self, request, pk=None):

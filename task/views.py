@@ -62,6 +62,40 @@ class TaskViewSet(viewsets.ModelViewSet):
             'points_awarded': task.points,
             'total_points': profile.total_points
         }, status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
+    def uncomplete_task(self, request, pk=None):
+        task = self.get_object()
+        user = request.user
+
+        # Find the most recent completed task
+        try:
+            user_task = UserTask.objects.filter(
+                user=user,
+                task=task,
+                is_completed=True
+            ).latest('completed_at')
+        except UserTask.DoesNotExist:
+            return Response({
+                'message': 'No completed task found'
+            }, status=status.HTTP_400_BAD_REQUEST)
+
+        # Update user points
+        profile = UserProfile.objects.get(user=user)
+        profile.total_points -= task.points
+        profile.save()
+
+        # Delete the user task
+        user_task.delete()
+
+        # Re-check badges after point reduction
+        self._check_and_award_badges(profile)
+
+        return Response({
+            'task_uncompleted': True,
+            'points_deducted': task.points,
+            'total_points': profile.total_points
+        }, status=status.HTTP_200_OK)
     
     def _check_and_award_badges(self, profile):
         # Award badges based on points
