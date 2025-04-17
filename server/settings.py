@@ -25,7 +25,7 @@ SECRET_KEY = 'django-insecure-fq-w@e*b(m5b!x%c=9&a&lo$xxa*(_0k4r1qkrw!+yk7wm%d9*
 # SECURITY WARNING: don't run with debug turned on in production!
 DEBUG = True
 
-ALLOWED_HOSTS = ['92d6-197-239-14-121.ngrok-free.app', 'localhost', '127.0.0.1', 'environment-be.onrender.com']
+ALLOWED_HOSTS = ['b60b-197-239-14-148.ngrok-free.app', 'localhost', '127.0.0.1', 'environment-be.onrender.com']
 
 CORS_ALLOW_ALL_ORIGINS = True
 

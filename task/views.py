@@ -10,6 +10,7 @@ from badge.models import Badge
 from task.serializers import TaskSerializer
 from .permissions import IsAuthenticated
 from userTask.permissions import IsOwnerOrReadOnly
+from datetime import datetime, timedelta
 
 # Create your views here.
 
@@ -17,6 +18,55 @@ class TaskViewSet(viewsets.ModelViewSet):
     queryset = Task.objects.all()
     serializer_class = TaskSerializer
     permission_classes = [IsAuthenticated]
+
+
+    @action(detail=False, methods=['get'], permission_classes=[IsAuthenticated])
+    def get_tasks_with_status(self, request):
+        """
+        Get tasks with their completion status for the current period (daily or weekly).
+        Returns all tasks of the requested type with a is_completed flag.
+        """
+        task_type = request.query_params.get('task_type', 'daily')
+        user = request.user
+        
+        # Validate task type
+        if task_type not in dict(Task.TASK_TYPES):
+            return Response({
+                'message': f"Invalid task type. Choose from: {', '.join(dict(Task.TASK_TYPES).keys())}"
+            }, status=status.HTTP_400_BAD_REQUEST)
+        
+        # Get all tasks of the specified type
+        tasks = Task.objects.filter(task_type=task_type)
+        
+        # Define the time threshold based on task type
+        if task_type == 'daily':
+            # Start of current day
+            today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            time_threshold = today
+        else:
+            # Start of current week (assuming Monday is the first day of the week)
+            today = timezone.now().date()
+            start_of_week = today - timedelta(days=today.weekday())  # Monday
+            time_threshold = timezone.make_aware(datetime.combine(start_of_week, datetime.min.time()))
+        
+        # Prepare response with tasks and their completion status
+        response_data = []
+        for task in tasks:
+            # Check if task was completed in the current period
+            completed_in_period = UserTask.objects.filter(
+                user=user,
+                task=task,
+                completed_at__gte=time_threshold,
+                is_completed=True
+            ).exists()
+            
+            # Serialize the task and add completion status
+            task_data = self.get_serializer(task).data
+            task_data['is_completed'] = completed_in_period
+            response_data.append(task_data)
+        
+        return Response(response_data, status=status.HTTP_200_OK)
+
     
     @action(detail=True, methods=['post'], permission_classes=[IsAuthenticated])
     def complete_task(self, request, pk=None):
