@@ -37,17 +37,24 @@ class TaskViewSet(viewsets.ModelViewSet):
         
         # Get all tasks of the specified type
         tasks = Task.objects.filter(task_type=task_type)
+
+        # Define the time threshold based on task type
+        now = timezone.now()
+
+        # Add offset for East Africa Time (UTC+3)
+        eat_offset = timedelta(hours=3)
+        adjusted_now = now + eat_offset
         
         # Define the time threshold based on task type
         if task_type == 'daily':
-            # Start of current day
-            today = timezone.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            # Start of current day in EAT
+            today = adjusted_now.replace(hour=0, minute=0, second=0, microsecond=0) - eat_offset
             time_threshold = today
         else:
-            # Start of current week (assuming Monday is the first day of the week)
-            today = timezone.now().date()
+            # Start of current week in EAT (assuming Monday is the first day of the week)
+            today = adjusted_now.date()
             start_of_week = today - timedelta(days=today.weekday())  # Monday
-            time_threshold = timezone.make_aware(datetime.combine(start_of_week, datetime.min.time()))
+            time_threshold = timezone.make_aware(datetime.combine(start_of_week, datetime.min.time())) - eat_offset
         
         # Prepare response with tasks and their completion status
         response_data = []
